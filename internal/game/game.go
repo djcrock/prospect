@@ -107,7 +107,7 @@ func (g *Game) DecideHandOrientation(player int, flip bool) error {
 	return nil
 }
 
-func (g *Game) Prospect(player int, start, flip bool, position int) error {
+func (g *Game) Prospect(player int, left, flip bool, position int) error {
 	if player < 0 || player >= len(g.Players) {
 		return errors.New("player out of range")
 	}
@@ -123,7 +123,7 @@ func (g *Game) Prospect(player int, start, flip bool, position int) error {
 	}
 
 	var card Card
-	if start {
+	if left {
 		card = g.Presentation[0]
 		g.Presentation = g.Presentation[1:]
 	} else {
@@ -135,13 +135,14 @@ func (g *Game) Prospect(player int, start, flip bool, position int) error {
 	}
 
 	p.Hand = slices.Insert(p.Hand, position, card)
-
 	g.Players[g.LastPlayerToPresent].ProspectTokens++
-	g.CurrentPlayer = (g.CurrentPlayer + 1) % len(g.Players)
-	if g.CurrentPlayer == g.LastPlayerToPresent {
-		g.endRound()
+
+	if p.CanProspectAndPresent && g.CanPlayerPresent(player) {
+		p.IsDecidingPresent = true
 		return nil
 	}
+
+	g.nextTurn()
 
 	return nil
 }
@@ -179,13 +180,43 @@ func (g *Game) Present(player, start, end int) error {
 	// Remove the presented cards from the Player's hand
 	p.Hand = slices.Delete(p.Hand, start, end)
 
+	// If the Player did a ProspectAndPresent, consume that opportunity
+	if p.IsDecidingPresent {
+		p.CanProspectAndPresent = false
+		p.IsDecidingPresent = false
+	}
+
 	if len(p.Hand) == 0 {
 		g.endRound()
 		return nil
 	}
 
-	g.CurrentPlayer = (g.CurrentPlayer + 1) % len(g.Players)
+	g.nextTurn()
 	return nil
+}
+
+// Pass on the opportunity to Present after Prospect.
+func (g *Game) Pass(player int) error {
+	if player < 0 || player >= len(g.Players) {
+		return errors.New("player out of range")
+	}
+	if player != g.CurrentPlayer {
+		return errors.New("not your turn")
+	}
+	p := &g.Players[g.CurrentPlayer]
+	if !p.IsDecidingPresent {
+		return errors.New("must prospect or present")
+	}
+	p.IsDecidingPresent = false
+	g.nextTurn()
+	return nil
+}
+
+func (g *Game) nextTurn() {
+	g.CurrentPlayer = (g.CurrentPlayer + 1) % len(g.Players)
+	if g.CurrentPlayer == g.LastPlayerToPresent {
+		g.endRound()
+	}
 }
 
 func (g *Game) endRound() {
@@ -211,7 +242,41 @@ func (g *Game) IsGameOver() bool {
 	return g.Round == len(g.Players)
 }
 
-func GetPresentationVals(presentation []Card) []int {
+func (g *Game) CanPlayerPresent(player int) bool {
+	return len(GetPlayablePresentations(g.Players[player].Hand, g.Presentation)) > 0
+}
+
+// GetPlayablePresentations determines which presentations could be played from
+// the given hand that would beat the provided presentation. Results are sorted
+// from least to most valuable.
+func GetPlayablePresentations(hand, presentation []Card) [][]Card {
+	validPresentations := GetValidPresentations(hand)
+	for i := range validPresentations {
+		if ComparePresentations(validPresentations[i], presentation) > 0 {
+			return validPresentations[i:]
+		}
+	}
+
+	return nil
+}
+
+// GetValidPresentations identifies the groups of cards in a hand that could be
+// presented together. The results are sorted from least to most valuable.
+func GetValidPresentations(hand []Card) [][]Card {
+	var validPresentations [][]Card
+	for i := range hand {
+		for j := range hand[i:] {
+			presentation := hand[i : i+j+1]
+			if IsValidPresentation(presentation) {
+				validPresentations = append(validPresentations, presentation)
+			}
+		}
+	}
+	slices.SortFunc(validPresentations, ComparePresentations)
+	return validPresentations
+}
+
+func getPresentationVals(presentation []Card) []int {
 	vals := make([]int, len(presentation))
 	for i := range presentation {
 		vals[i] = presentation[i][0]
@@ -226,7 +291,7 @@ func IsValidPresentation(presentation []Card) bool {
 	if len(presentation) == 1 {
 		return true
 	}
-	vals := GetPresentationVals(presentation)
+	vals := getPresentationVals(presentation)
 
 	isAlike := true
 	isAscendingRun := true
@@ -241,11 +306,18 @@ func IsValidPresentation(presentation []Card) bool {
 		if vals[i] != vals[i-1]-1 {
 			isDescendingRun = false
 		}
+		if !isAlike && !isAscendingRun && !isDescendingRun {
+			return false
+		}
 	}
 
 	return isAlike || isAscendingRun || isDescendingRun
 }
 
+// ComparePresentations compares the value of two presentations (assumed to be
+// valid), and returns 1 if the value of a is greater, -1 if the value of b is
+// greater, and 0 if they have the same value. This function is usable with the
+// slices.SortFunc function to rank presentations.
 func ComparePresentations(a, b []Card) int {
 	if len(a) != len(b) {
 		return cmp.Compare(len(a), len(b))
@@ -253,7 +325,7 @@ func ComparePresentations(a, b []Card) int {
 
 	aMax := 0
 	aSame := true
-	for _, aVal := range GetPresentationVals(a) {
+	for _, aVal := range getPresentationVals(a) {
 		if aMax != 0 && aVal != aMax {
 			aSame = false
 		}
@@ -264,7 +336,7 @@ func ComparePresentations(a, b []Card) int {
 
 	bMax := 0
 	bSame := true
-	for _, bVal := range GetPresentationVals(b) {
+	for _, bVal := range getPresentationVals(b) {
 		if bMax != 0 && bVal != bMax {
 			bSame = false
 		}

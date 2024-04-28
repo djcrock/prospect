@@ -20,6 +20,7 @@ type Player struct {
 	ScorePile                 int
 	CanProspectAndPresent     bool
 	HasDecidedHandOrientation bool
+	IsDecidingPresent         bool
 }
 
 type Card [2]int
