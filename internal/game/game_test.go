@@ -73,12 +73,12 @@ func TestGame_AddPlayer(t *testing.T) {
 	g := &Game{}
 	maxPlayers := 5
 	for i := range maxPlayers {
-		err := g.AddPlayer(fmt.Sprintf("Player %d", i))
+		err := g.AddPlayer(fmt.Sprintf("%d", i), fmt.Sprintf("Player %d", i))
 		if err != nil {
 			t.Fatalf("unexpected error adding player %d: %v", i, err)
 		}
 	}
-	err := g.AddPlayer("Excess Player")
+	err := g.AddPlayer("excess", "Excess Player")
 	if err == nil {
 		t.Fatalf("expected error adding player excess player")
 	}
@@ -91,7 +91,7 @@ func TestGame_Start(t *testing.T) {
 		t.Fatalf("expected error starting game with 0 players")
 	}
 
-	err = g.AddPlayer("Player 0")
+	err = g.AddPlayer("0", "Player 0")
 	if err != nil {
 		t.Fatalf("unexpected error adding player 0: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestGame_Start(t *testing.T) {
 		t.Fatalf("expected error starting game with 1 player")
 	}
 
-	err = g.AddPlayer("Player 1")
+	err = g.AddPlayer("1", "Player 1")
 	if err != nil {
 		t.Fatalf("unexpected error adding player 1: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestGame_Start(t *testing.T) {
 		t.Fatalf("expected error starting game with 2 players")
 	}
 
-	err = g.AddPlayer("Player 2")
+	err = g.AddPlayer("2", "Player 2")
 	if err != nil {
 		t.Fatalf("unexpected error adding player 2: %v", err)
 	}
@@ -278,7 +278,7 @@ func TestIsValidPresentation(t *testing.T) {
 func TestGameplay(t *testing.T) {
 	g := &Game{rand: rand.New(rand.NewPCG(1, 2))}
 	for i := range 3 {
-		err := g.AddPlayer(fmt.Sprintf("Player %d", i))
+		err := g.AddPlayer(fmt.Sprintf("%d", i), fmt.Sprintf("Player %d", i))
 		if err != nil {
 			t.Fatalf("unexpected error adding player %d: %v", i, err)
 		}

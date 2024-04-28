@@ -6,6 +6,8 @@ import (
 	"slices"
 )
 
+const maxPlayers = 5
+
 var baseDeck = makeBaseDeck()
 
 func makeBaseDeck() []Card {
@@ -33,13 +35,25 @@ func GetDeck(players int) []Card {
 	return result
 }
 
-func (g *Game) AddPlayer(name string) error {
-	if len(g.Players) >= 5 {
+func (g *Game) AddPlayer(id, name string) error {
+	if g.IsFull() {
 		return errors.New("game is full")
 	}
+	if p := g.GetPlayerById(id); p != nil {
+		return errors.New("player already exists")
+	}
 
-	g.Players = append(g.Players, Player{Name: name})
+	g.Players = append(g.Players, Player{Id: id, Name: name})
 
+	return nil
+}
+
+func (g *Game) GetPlayerById(id string) *Player {
+	for i := range g.Players {
+		if g.Players[i].Id == id {
+			return &g.Players[i]
+		}
+	}
 	return nil
 }
 
@@ -236,6 +250,10 @@ func (g *Game) endRound() {
 		return
 	}
 	g.startRound()
+}
+
+func (g *Game) IsFull() bool {
+	return len(g.Players) >= maxPlayers
 }
 
 func (g *Game) IsGameOver() bool {

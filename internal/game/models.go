@@ -3,6 +3,7 @@ package game
 import "math/rand/v2"
 
 type Game struct {
+	Id                  string
 	Round               int
 	CurrentPlayer       int
 	LastPlayerToPresent int
@@ -13,6 +14,7 @@ type Game struct {
 }
 
 type Player struct {
+	Id                        string
 	Name                      string
 	Hand                      []Card
 	Points                    int

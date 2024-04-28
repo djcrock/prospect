@@ -1,0 +1,26 @@
+{{define "content"}}
+    <h3>Players</h3>
+    <ul>
+        {{range .Game.Players}}
+            <li>
+                {{.Name}}{{if and ($.Player) (eq .Id $.Player.Id)}}
+                    (you)
+                    <form class="inline-form" method="post" action="/game/{{$.Game.Id}}/players/{{$.Player.Id}}/leave">
+                        <button type="submit">Leave</button>
+                    </form>
+                {{end}}
+            </li>
+        {{end}}
+        {{if and (not .Player) (not .Game.IsFull)}}
+            <li>
+                <form method="post" action="/game/{{.Game.Id}}/players">
+                    <label>Enter a username: <input type="text" name="name" required></label>
+                    <button type="submit">Join</button>
+                </form>
+            </li>
+        {{end}}
+    </ul>
+    {{if .Player}}
+        <button onclick="navigator.clipboard.writeText(window.location)">Copy invite link</button>
+    {{end}}
+{{end}}
