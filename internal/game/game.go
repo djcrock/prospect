@@ -1,6 +1,10 @@
 package game
 
-import "errors"
+import (
+	"cmp"
+	"errors"
+	"slices"
+)
 
 var baseDeck = makeBaseDeck()
 
@@ -14,28 +18,267 @@ func makeBaseDeck() []Card {
 	return baseDeck
 }
 
-func GetDeck(players int) ([]Card, error) {
-	if players < 3 {
-		return nil, errors.New("not enough players")
-	}
-	if players > 5 {
-		return nil, errors.New("too many players")
-	}
+func GetDeck(players int) []Card {
+	cardsToRemove := 0
 	if players == 3 {
 		// Omit all cards containing 10 (the first 9 cards)
-		cardsToRemove := 9
-		result := make([]Card, len(baseDeck)-cardsToRemove)
-		copy(result, baseDeck[cardsToRemove:])
-		return result, nil
+		cardsToRemove = 9
 	}
 	if players == 4 {
 		// Remove the 10/9 card (the first card)
-		cardsToRemove := 1
-		result := make([]Card, len(baseDeck)-cardsToRemove)
-		copy(result, baseDeck[cardsToRemove:])
-		return result, nil
+		cardsToRemove = 1
 	}
-	result := make([]Card, len(baseDeck))
-	copy(result, baseDeck)
-	return result, nil
+	result := make([]Card, len(baseDeck)-cardsToRemove)
+	copy(result, baseDeck[cardsToRemove:])
+	return result
+}
+
+func (g *Game) AddPlayer(name string) error {
+	if len(g.Players) >= 5 {
+		return errors.New("game is full")
+	}
+
+	g.Players = append(g.Players, Player{Name: name})
+
+	return nil
+}
+
+func (g *Game) Start() error {
+	if len(g.Players) < 3 {
+		return errors.New("not enough players")
+	}
+	g.startRound()
+	return nil
+}
+
+func (g *Game) startRound() {
+	deck := GetDeck(len(g.Players))
+	g.CurrentPlayer = g.Round
+	g.Round++
+	cardsPerPlayer := len(deck) / len(g.Players)
+	for i := range g.Players {
+		p := &g.Players[i]
+		p.HasDecidedHandOrientation = false
+		p.CanProspectAndPresent = true
+		p.Hand = make([]Card, cardsPerPlayer)
+		for handIndex := range cardsPerPlayer {
+			drawIndex := g.rand.IntN(len(deck))
+			drawnCard := deck[drawIndex]
+			// Remove the drawnCard from the decl by replacing it with the last
+			// card in the deck and reducing the length of the deck by one.
+			deck[drawIndex] = deck[len(deck)-1]
+			deck = deck[:len(deck)-1]
+
+			// 50/50 chance of the card's orientation being flipped
+			if g.rand.IntN(2) == 0 {
+				drawnCard[0], drawnCard[1] = drawnCard[1], drawnCard[0]
+			}
+			p.Hand[handIndex] = drawnCard
+		}
+	}
+}
+
+func (g *Game) HavePlayersDecidedHandOrientation() bool {
+	for i := range g.Players {
+		if !g.Players[i].HasDecidedHandOrientation {
+			return false
+		}
+	}
+	return true
+}
+
+func (g *Game) DecideHandOrientation(player int, flip bool) error {
+	if player < 0 || player >= len(g.Players) {
+		return errors.New("player out of range")
+	}
+	p := &g.Players[player]
+	if p.HasDecidedHandOrientation {
+		return errors.New("player already has selected orientation")
+	}
+
+	p.HasDecidedHandOrientation = true
+
+	if flip {
+		for i := range p.Hand {
+			p.Hand[i][0], p.Hand[i][1] = p.Hand[i][1], p.Hand[i][0]
+		}
+	}
+
+	return nil
+}
+
+func (g *Game) Prospect(player int, start, flip bool, position int) error {
+	if player < 0 || player >= len(g.Players) {
+		return errors.New("player out of range")
+	}
+	if player != g.CurrentPlayer {
+		return errors.New("not your turn")
+	}
+	if len(g.Presentation) == 0 {
+		return errors.New("nothing to prospect")
+	}
+	p := &g.Players[g.CurrentPlayer]
+	if position > len(p.Hand) {
+		return errors.New("position out of range")
+	}
+
+	var card Card
+	if start {
+		card = g.Presentation[0]
+		g.Presentation = g.Presentation[1:]
+	} else {
+		card = g.Presentation[len(g.Presentation)-1]
+		g.Presentation = g.Presentation[:len(g.Presentation)-1]
+	}
+	if flip {
+		card[0], card[1] = card[1], card[0]
+	}
+
+	p.Hand = slices.Insert(p.Hand, position, card)
+
+	g.Players[g.LastPlayerToPresent].ProspectTokens++
+	g.CurrentPlayer = (g.CurrentPlayer + 1) % len(g.Players)
+	if g.CurrentPlayer == g.LastPlayerToPresent {
+		g.endRound()
+		return nil
+	}
+
+	return nil
+}
+
+func (g *Game) Present(player, start, end int) error {
+	if player < 0 || player >= len(g.Players) {
+		return errors.New("player out of range")
+	}
+	if player != g.CurrentPlayer {
+		return errors.New("not your turn")
+	}
+	if !g.HavePlayersDecidedHandOrientation() {
+		return errors.New("waiting for players to select hand orientation")
+	}
+	p := &g.Players[g.CurrentPlayer]
+	if start < 0 || start >= len(p.Hand) {
+		return errors.New("start is out of range")
+	}
+	if end < start || end > len(p.Hand) {
+		return errors.New("end is out of range")
+	}
+
+	newPresentation := append([]Card(nil), p.Hand[start:end]...)
+	if !IsValidPresentation(newPresentation) {
+		return errors.New("invalid presentation")
+	}
+	if ComparePresentations(newPresentation, g.Presentation) <= 0 {
+		return errors.New("new presentation does not beat existing presentation")
+	}
+
+	p.ScorePile += len(g.Presentation)
+	g.LastPlayerToPresent = g.CurrentPlayer
+	g.Presentation = newPresentation
+
+	// Remove the presented cards from the Player's hand
+	p.Hand = slices.Delete(p.Hand, start, end)
+
+	if len(p.Hand) == 0 {
+		g.endRound()
+		return nil
+	}
+
+	g.CurrentPlayer = (g.CurrentPlayer + 1) % len(g.Players)
+	return nil
+}
+
+func (g *Game) endRound() {
+	for i := range g.Players {
+		p := &g.Players[i]
+		p.Points += p.ScorePile
+		p.ScorePile = 0
+		p.Points += p.ProspectTokens
+		p.ProspectTokens = 0
+		if i != g.LastPlayerToPresent {
+			p.Points -= len(p.Hand)
+		}
+		p.Hand = nil
+	}
+
+	if g.IsGameOver() {
+		return
+	}
+	g.startRound()
+}
+
+func (g *Game) IsGameOver() bool {
+	return g.Round == len(g.Players)
+}
+
+func GetPresentationVals(presentation []Card) []int {
+	vals := make([]int, len(presentation))
+	for i := range presentation {
+		vals[i] = presentation[i][0]
+	}
+	return vals
+}
+
+func IsValidPresentation(presentation []Card) bool {
+	if len(presentation) == 0 {
+		return false
+	}
+	if len(presentation) == 1 {
+		return true
+	}
+	vals := GetPresentationVals(presentation)
+
+	isAlike := true
+	isAscendingRun := true
+	isDescendingRun := true
+	for i := 1; i < len(vals); i++ {
+		if vals[i] != vals[i-1] {
+			isAlike = false
+		}
+		if vals[i] != vals[i-1]+1 {
+			isAscendingRun = false
+		}
+		if vals[i] != vals[i-1]-1 {
+			isDescendingRun = false
+		}
+	}
+
+	return isAlike || isAscendingRun || isDescendingRun
+}
+
+func ComparePresentations(a, b []Card) int {
+	if len(a) != len(b) {
+		return cmp.Compare(len(a), len(b))
+	}
+
+	aMax := 0
+	aSame := true
+	for _, aVal := range GetPresentationVals(a) {
+		if aMax != 0 && aVal != aMax {
+			aSame = false
+		}
+		if aVal > aMax {
+			aMax = aVal
+		}
+	}
+
+	bMax := 0
+	bSame := true
+	for _, bVal := range GetPresentationVals(b) {
+		if bMax != 0 && bVal != bMax {
+			bSame = false
+		}
+		if bVal > bMax {
+			bMax = bVal
+		}
+	}
+
+	if aSame && !bSame {
+		return 1
+	}
+	if !aSame && bSame {
+		return -1
+	}
+
+	return cmp.Compare(aMax, bMax)
 }
