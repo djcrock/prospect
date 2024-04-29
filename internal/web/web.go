@@ -120,6 +120,8 @@ func (s *server) handlePostGamePlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	playerIdCookie, err := r.Cookie("playerId")
 	if err == nil {
 		p := g.GetPlayerById(playerIdCookie.Value)
@@ -160,6 +162,8 @@ func (s *server) handlePostGameLeave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
 	playerIdCookie, err := r.Cookie("playerId")
 	if err == nil {
 		g.RemovePlayer(playerIdCookie.Value)
@@ -189,6 +193,9 @@ func (s *server) handleGetGame(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	g.Mu.RLock()
+	defer g.Mu.RUnlock()
 
 	data := &gameData{Base: baseData{Title: "Game"}, Game: g}
 

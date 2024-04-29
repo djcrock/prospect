@@ -1,8 +1,12 @@
 package game
 
-import "math/rand/v2"
+import (
+	"math/rand/v2"
+	"sync"
+)
 
 type Game struct {
+	Mu                  sync.RWMutex
 	Id                  string
 	Round               int
 	CurrentPlayer       int
