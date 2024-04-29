@@ -5,7 +5,7 @@
             <li>
                 {{.Name}}{{if and ($.Player) (eq .Id $.Player.Id)}}
                     (you)
-                    <form class="inline-form" method="post" action="/game/{{$.Game.Id}}/players/{{$.Player.Id}}/leave">
+                    <form class="inline-form" method="post" action="/game/{{$.Game.Id}}/leave">
                         <button type="submit">Leave</button>
                     </form>
                 {{end}}

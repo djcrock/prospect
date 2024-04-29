@@ -36,6 +36,7 @@ func NewApp(
 	mux.HandleFunc("POST /game", s.handlePostGame)
 	mux.HandleFunc("GET /game/{id}", s.handleGetGame)
 	mux.HandleFunc("POST /game/{id}/players", s.handlePostGamePlayers)
+	mux.HandleFunc("POST /game/{id}/leave", s.handlePostGameLeave)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.InfoContext(r.Context(), fmt.Sprintf("%s %s", r.Method, r.URL.Path))
@@ -69,6 +70,12 @@ func (s *server) retrieveGame(gameId string) *game.Game {
 	return s.games[gameId]
 }
 
+func (s *server) removeGame(gameId string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.games, gameId)
+}
+
 func setPlayerIdCookie(w http.ResponseWriter, gameId, playerId string) {
 	gamePath := "/game/" + gameId
 	http.SetCookie(w, &http.Cookie{
@@ -78,6 +85,10 @@ func setPlayerIdCookie(w http.ResponseWriter, gameId, playerId string) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func redirectToGame(w http.ResponseWriter, r *http.Request, gameId string) {
+	http.Redirect(w, r, "/game/"+gameId, http.StatusSeeOther)
 }
 
 func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -94,10 +105,8 @@ func (s *server) handlePostGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gamePath := "/game/" + g.Id
 	setPlayerIdCookie(w, g.Id, g.Players[0].Id)
-	http.Redirect(w, r, gamePath, http.StatusSeeOther)
-
+	redirectToGame(w, r, g.Id)
 }
 
 func (s *server) handlePostGamePlayers(w http.ResponseWriter, r *http.Request) {
@@ -111,13 +120,11 @@ func (s *server) handlePostGamePlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gamePath := "/game/" + g.Id
-
 	playerIdCookie, err := r.Cookie("playerId")
 	if err == nil {
 		p := g.GetPlayerById(playerIdCookie.Value)
 		if p != nil {
-			http.Redirect(w, r, gamePath, http.StatusSeeOther)
+			redirectToGame(w, r, g.Id)
 			return
 		}
 	}
@@ -134,12 +141,36 @@ func (s *server) handlePostGamePlayers(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			setPlayerIdCookie(w, g.Id, playerId)
-			http.Redirect(w, r, gamePath, http.StatusSeeOther)
+			redirectToGame(w, r, g.Id)
 			return
 		}
 	}
 
 	http.Error(w, "Failed to join game. Please try again later.", http.StatusInternalServerError)
+}
+
+func (s *server) handlePostGameLeave(w http.ResponseWriter, r *http.Request) {
+	g := s.retrieveGame(r.PathValue("id"))
+	if g == nil {
+		w.WriteHeader(http.StatusNotFound)
+		err := templates.NotFound.ExecuteFull(w, nil)
+		if err != nil {
+			s.logger.ErrorContext(r.Context(), "Failed to execute template: %v", err)
+		}
+		return
+	}
+
+	playerIdCookie, err := r.Cookie("playerId")
+	if err == nil {
+		g.RemovePlayer(playerIdCookie.Value)
+		if g.IsEmpty() {
+			s.removeGame(g.Id)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+	}
+
+	redirectToGame(w, r, g.Id)
 }
 
 type gameData struct {
@@ -166,7 +197,6 @@ func (s *server) handleGetGame(w http.ResponseWriter, r *http.Request) {
 		data.Player = g.GetPlayerById(playerIdCookie.Value)
 	}
 
-	s.logger.InfoContext(r.Context(), fmt.Sprintf("%+v, %+v", data.Game, data.Player))
 	err = templates.Game.ExecuteFull(w, data)
 	if err != nil {
 		s.logger.ErrorContext(r.Context(), "Failed to execute template: %v", err)

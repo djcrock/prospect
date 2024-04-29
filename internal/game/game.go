@@ -48,13 +48,33 @@ func (g *Game) AddPlayer(id, name string) error {
 	return nil
 }
 
+func (g *Game) RemovePlayer(id string) {
+	if g.Round > 0 {
+		return
+	}
+	i, err := g.GetPlayerIndex(id)
+	if err != nil {
+		return
+	}
+	g.Players = slices.Delete(g.Players, i, i+1)
+}
+
 func (g *Game) GetPlayerById(id string) *Player {
+	i, err := g.GetPlayerIndex(id)
+	if err != nil {
+		return nil
+	}
+	return &g.Players[i]
+}
+
+func (g *Game) GetPlayerIndex(id string) (int, error) {
 	for i := range g.Players {
 		if g.Players[i].Id == id {
-			return &g.Players[i]
+			return i, nil
 		}
 	}
-	return nil
+
+	return -1, errors.New("player not found")
 }
 
 func (g *Game) Start() error {
@@ -250,6 +270,10 @@ func (g *Game) endRound() {
 		return
 	}
 	g.startRound()
+}
+
+func (g *Game) IsEmpty() bool {
+	return len(g.Players) == 0
 }
 
 func (g *Game) IsFull() bool {
