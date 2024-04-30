@@ -105,7 +105,7 @@ func (g *Game) startRound() {
 
 			// 50/50 chance of the card's orientation being flipped
 			if g.rand.IntN(2) == 0 {
-				drawnCard[0], drawnCard[1] = drawnCard[1], drawnCard[0]
+				drawnCard = drawnCard.Flip()
 			}
 			p.Hand[handIndex] = drawnCard
 		}
@@ -134,7 +134,7 @@ func (g *Game) DecideHandOrientation(player int, flip bool) error {
 
 	if flip {
 		for i := range p.Hand {
-			p.Hand[i][0], p.Hand[i][1] = p.Hand[i][1], p.Hand[i][0]
+			p.Hand[i] = p.Hand[i].Flip()
 		}
 	}
 
@@ -165,7 +165,7 @@ func (g *Game) Prospect(player int, left, flip bool, position int) error {
 		g.Presentation = g.Presentation[:len(g.Presentation)-1]
 	}
 	if flip {
-		card[0], card[1] = card[1], card[0]
+		card = card.Flip()
 	}
 
 	p.Hand = slices.Insert(p.Hand, position, card)

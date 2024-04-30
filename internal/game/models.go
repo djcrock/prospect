@@ -30,3 +30,7 @@ type Player struct {
 }
 
 type Card [2]int
+
+func (c Card) Flip() Card {
+	return Card{c[1], c[0]}
+}
