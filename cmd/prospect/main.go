@@ -6,7 +6,6 @@ import (
 	"flag"
 	"github.com/djcrock/prospect/internal/web"
 	"log"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -54,7 +53,7 @@ func main() {
 		logAddr = "localhost" + addr
 	}
 
-	app := web.NewApp(slog.Default())
+	app := web.NewApp(log.Default())
 
 	srv := &http.Server{
 		Addr:    addr,

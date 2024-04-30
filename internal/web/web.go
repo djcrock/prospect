@@ -6,7 +6,8 @@ import (
 	"github.com/djcrock/prospect/internal/util"
 	"github.com/djcrock/prospect/internal/web/static"
 	"github.com/djcrock/prospect/internal/web/templates"
-	"log/slog"
+	"log"
+	"math/rand/v2"
 	"net/http"
 	"sync"
 )
@@ -19,11 +20,11 @@ type server struct {
 	mu    sync.RWMutex
 	games map[string]*game.Game
 
-	logger *slog.Logger
+	logger *log.Logger
 }
 
 func NewApp(
-	logger *slog.Logger,
+	logger *log.Logger,
 ) http.Handler {
 	s := &server{
 		games:  make(map[string]*game.Game),
@@ -37,9 +38,10 @@ func NewApp(
 	mux.HandleFunc("GET /game/{id}", s.handleGetGame)
 	mux.HandleFunc("POST /game/{id}/players", s.handlePostGamePlayers)
 	mux.HandleFunc("POST /game/{id}/leave", s.handlePostGameLeave)
+	mux.HandleFunc("POST /game/{id}/start", s.handlePostGameStart)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger.InfoContext(r.Context(), fmt.Sprintf("%s %s", r.Method, r.URL.Path))
+		logger.Printf("%s %s", r.Method, r.URL.Path)
 		mux.ServeHTTP(w, r)
 	})
 }
@@ -55,7 +57,11 @@ func (s *server) createGame(userName string) *game.Game {
 		gameId := util.RandomString(gameIdLength)
 		_, ok := s.games[gameId]
 		if !ok {
-			g := &game.Game{Id: gameId, Players: []game.Player{{Id: util.RandomString(playerIdLength), Name: userName}}}
+			g := &game.Game{
+				Id:      gameId,
+				Players: []game.Player{{Id: util.RandomString(playerIdLength), Name: userName}},
+				Rand:    rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64())),
+			}
 			s.games[gameId] = g
 			return g
 		}
@@ -91,10 +97,10 @@ func redirectToGame(w http.ResponseWriter, r *http.Request, gameId string) {
 	http.Redirect(w, r, "/game/"+gameId, http.StatusSeeOther)
 }
 
-func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleIndex(w http.ResponseWriter, _ *http.Request) {
 	err := templates.Index.ExecuteFull(w, nil)
 	if err != nil {
-		s.logger.ErrorContext(r.Context(), "Failed to execute template: %v", err)
+		s.logger.Printf("Failed to execute template: %v", err)
 	}
 }
 
@@ -115,7 +121,7 @@ func (s *server) handlePostGamePlayers(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		err := templates.NotFound.ExecuteFull(w, nil)
 		if err != nil {
-			s.logger.ErrorContext(r.Context(), "Failed to execute template: %v", err)
+			s.logger.Printf("Failed to execute template: %v", err)
 		}
 		return
 	}
@@ -157,7 +163,7 @@ func (s *server) handlePostGameLeave(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		err := templates.NotFound.ExecuteFull(w, nil)
 		if err != nil {
-			s.logger.ErrorContext(r.Context(), "Failed to execute template: %v", err)
+			s.logger.Printf("Failed to execute template: %v", err)
 		}
 		return
 	}
@@ -177,6 +183,37 @@ func (s *server) handlePostGameLeave(w http.ResponseWriter, r *http.Request) {
 	redirectToGame(w, r, g.Id)
 }
 
+func (s *server) handlePostGameStart(w http.ResponseWriter, r *http.Request) {
+	g := s.retrieveGame(r.PathValue("id"))
+	if g == nil {
+		w.WriteHeader(http.StatusNotFound)
+		err := templates.NotFound.ExecuteFull(w, nil)
+		if err != nil {
+			s.logger.Printf("Failed to execute template: %v", err)
+		}
+		return
+	}
+
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	playerIdCookie, err := r.Cookie("playerId")
+	if err != nil {
+		redirectToGame(w, r, g.Id)
+		return
+	}
+	p := g.GetPlayerById(playerIdCookie.Value)
+	if p == nil {
+		redirectToGame(w, r, g.Id)
+		return
+	}
+	err = g.Start()
+	if err != nil {
+		s.logger.Printf("failed to start game: %v", err)
+	}
+
+	redirectToGame(w, r, g.Id)
+}
+
 type gameData struct {
 	Base   baseData
 	Game   *game.Game
@@ -189,7 +226,7 @@ func (s *server) handleGetGame(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		err := templates.NotFound.ExecuteFull(w, nil)
 		if err != nil {
-			s.logger.ErrorContext(r.Context(), "Failed to execute template: %v", err)
+			s.logger.Printf("Failed to execute template: %v", err)
 		}
 		return
 	}
@@ -206,6 +243,6 @@ func (s *server) handleGetGame(w http.ResponseWriter, r *http.Request) {
 
 	err = templates.Game.ExecuteFull(w, data)
 	if err != nil {
-		s.logger.ErrorContext(r.Context(), "Failed to execute template: %v", err)
+		s.logger.Printf("Failed to execute template: %v", err)
 	}
 }

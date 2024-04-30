@@ -14,7 +14,7 @@ type Game struct {
 	Presentation        []Card
 	Players             []Player
 
-	rand *rand.Rand
+	Rand *rand.Rand
 }
 
 type Player struct {

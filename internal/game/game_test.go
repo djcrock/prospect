@@ -85,7 +85,7 @@ func TestGame_AddPlayer(t *testing.T) {
 }
 
 func TestGame_Start(t *testing.T) {
-	g := &Game{rand: rand.New(rand.NewPCG(1, 2))}
+	g := &Game{Rand: rand.New(rand.NewPCG(1, 2))}
 	err := g.Start()
 	if err == nil {
 		t.Fatalf("expected error starting game with 0 players")
@@ -157,7 +157,7 @@ func TestGame_Present(t *testing.T) {
 				{Hand: []Card{{1, 2}, {2, 3}}, Points: 1, ScorePile: 2, ProspectTokens: 3, HasDecidedHandOrientation: true},
 				{Hand: []Card{{5, 6}, {7, 8}}, HasDecidedHandOrientation: true},
 			},
-			rand: rand.New(rand.NewPCG(1, 2)),
+			Rand: rand.New(rand.NewPCG(1, 2)),
 		}
 
 		err := g.Present(0, 0, 2)
@@ -276,7 +276,7 @@ func TestIsValidPresentation(t *testing.T) {
 }
 
 func TestGameplay(t *testing.T) {
-	g := &Game{rand: rand.New(rand.NewPCG(1, 2))}
+	g := &Game{Rand: rand.New(rand.NewPCG(1, 2))}
 	for i := range 3 {
 		err := g.AddPlayer(fmt.Sprintf("%d", i), fmt.Sprintf("Player %d", i))
 		if err != nil {

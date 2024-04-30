@@ -6,6 +6,7 @@ import (
 	"slices"
 )
 
+const minPlayers = 3
 const maxPlayers = 5
 
 var baseDeck = makeBaseDeck()
@@ -78,7 +79,10 @@ func (g *Game) GetPlayerIndex(id string) (int, error) {
 }
 
 func (g *Game) Start() error {
-	if len(g.Players) < 3 {
+	if !g.IsLobby() {
+		return errors.New("game already started")
+	}
+	if !g.HasEnoughPlayers() {
 		return errors.New("not enough players")
 	}
 	g.startRound()
@@ -96,7 +100,7 @@ func (g *Game) startRound() {
 		p.CanProspectAndPresent = true
 		p.Hand = make([]Card, cardsPerPlayer)
 		for handIndex := range cardsPerPlayer {
-			drawIndex := g.rand.IntN(len(deck))
+			drawIndex := g.Rand.IntN(len(deck))
 			drawnCard := deck[drawIndex]
 			// Remove the drawnCard from the decl by replacing it with the last
 			// card in the deck and reducing the length of the deck by one.
@@ -104,7 +108,7 @@ func (g *Game) startRound() {
 			deck = deck[:len(deck)-1]
 
 			// 50/50 chance of the card's orientation being flipped
-			if g.rand.IntN(2) == 0 {
+			if g.Rand.IntN(2) == 0 {
 				drawnCard = drawnCard.Flip()
 			}
 			p.Hand[handIndex] = drawnCard
@@ -276,8 +280,16 @@ func (g *Game) IsEmpty() bool {
 	return len(g.Players) == 0
 }
 
+func (g *Game) HasEnoughPlayers() bool {
+	return len(g.Players) >= minPlayers
+}
+
 func (g *Game) IsFull() bool {
 	return len(g.Players) >= maxPlayers
+}
+
+func (g *Game) IsLobby() bool {
+	return g.Round == 0
 }
 
 func (g *Game) IsGameOver() bool {

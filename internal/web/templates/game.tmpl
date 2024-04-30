@@ -1,26 +1,40 @@
 {{define "content"}}
-    <h3>Players</h3>
-    <ul>
-        {{range .Game.Players}}
-            <li>
-                {{.Name}}{{if and ($.Player) (eq .Id $.Player.Id)}}
-                    (you)
-                    <form class="inline-form" method="post" action="/game/{{$.Game.Id}}/leave">
-                        <button type="submit">Leave</button>
+    {{if .Game.IsLobby}}
+        <h3>Lobby</h3>
+        <ul>
+            {{range .Game.Players}}
+                <li>
+                    {{.Name}}{{if and ($.Player) (eq .Id $.Player.Id)}}
+                        (you)
+                        <form class="inline-form" method="post" action="/game/{{$.Game.Id}}/leave">
+                            <button type="submit">Leave</button>
+                        </form>
+                    {{end}}
+                </li>
+            {{end}}
+            {{if and (not .Player) (not .Game.IsFull)}}
+                <li>
+                    <form method="post" action="/game/{{.Game.Id}}/players">
+                        <label>Enter a username: <input type="text" name="name" required></label>
+                        <button type="submit">Join</button>
                     </form>
-                {{end}}
-            </li>
-        {{end}}
-        {{if and (not .Player) (not .Game.IsFull)}}
-            <li>
-                <form method="post" action="/game/{{.Game.Id}}/players">
-                    <label>Enter a username: <input type="text" name="name" required></label>
-                    <button type="submit">Join</button>
+                </li>
+            {{end}}
+        </ul>
+        {{if .Player}}
+            {{if not .Game.IsFull}}<button onclick="navigator.clipboard.writeText(window.location)">Copy invite link</button>{{end}}
+            {{if .Game.HasEnoughPlayers}}
+                <form method="post" action="/game/{{.Game.Id}}/start">
+                    <button type="submit">Start Game</button>
                 </form>
-            </li>
+            {{end}}
         {{end}}
-    </ul>
-    {{if .Player}}
-        <button onclick="navigator.clipboard.writeText(window.location)">Copy invite link</button>
+    {{else if .Game.IsGameOver}}
+        <h3>Game Over</h3>
+    {{else}}
+        <h3>Game</h3>
+        <ul>
+            <li>Round: {{.Game.Round}}</li>
+        </ul>
     {{end}}
 {{end}}
