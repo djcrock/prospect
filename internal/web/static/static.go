@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-//go:embed *.css
+//go:embed *.css vendor
 var files embed.FS
 
 var FileServer = http.FileServer(http.FS(files))

@@ -1,5 +1,5 @@
 {{define "content"}}
-    <form method="post" action="/game">
+    <form data-hx-post="/game" data-hx-target="#content">
         <label>Enter a username: <input type="text" name="name" required></label>
         <button type="submit">New Game</button>
     </form>

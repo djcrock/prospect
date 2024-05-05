@@ -70,7 +70,7 @@ func main() {
 		log.Println("received interrupt; shutting down...")
 
 		// Deadline for server shutdown
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 
 		err := srv.Shutdown(ctx)

@@ -1,40 +1,38 @@
 {{define "content"}}
-    {{if .Game.IsLobby}}
-        <h3>Lobby</h3>
-        <ul>
-            {{range .Game.Players}}
-                <li>
-                    {{.Name}}{{if and ($.Player) (eq .Id $.Player.Id)}}
-                        (you)
-                        <form class="inline-form" method="post" action="/game/{{$.Game.Id}}/leave">
-                            <button type="submit">Leave</button>
+    {{if not .IsSse}}<div id="game" data-hx-ext="sse,morph" data-hx-swap="morph:{morphStyle:'innerHTML',ignoreActiveValue:true}" data-sse-connect="/game/{{.Game.Id}}/sse" data-sse-swap="message">{{end}}
+        {{if .Game.IsLobby}}
+            <h3>Lobby</h3>
+            <ul>
+                {{range .Game.Players}}
+                    <li>
+                        {{.Name}}{{if and ($.Player) (eq .Id $.Player.Id)}}
+                            (you)
+                            <button data-hx-post="/game/{{$.Game.Id}}/leave" data-hx-target="#content">Leave</button>
+                        {{end}}
+                    </li>
+                {{end}}
+                {{if and (not .Player) (not .Game.IsFull)}}
+                    <li>
+                        <form data-hx-post="/game/{{.Game.Id}}/players" data-hx-target="#content">
+                            <label>Enter a username: <input type="text" name="name" required></label>
+                            <button type="submit">Join</button>
                         </form>
-                    {{end}}
-                </li>
+                    </li>
+                {{end}}
+            </ul>
+            {{if .Player}}
+                {{if not .Game.IsFull}}<button onclick="navigator.clipboard.writeText(window.location)">Copy invite link</button>{{end}}
+                {{if .Game.HasEnoughPlayers}}
+                    <button data-hx-post="/game/{{.Game.Id}}/start" data-hx-target="#content">Start Game</button>
+                {{end}}
             {{end}}
-            {{if and (not .Player) (not .Game.IsFull)}}
-                <li>
-                    <form method="post" action="/game/{{.Game.Id}}/players">
-                        <label>Enter a username: <input type="text" name="name" required></label>
-                        <button type="submit">Join</button>
-                    </form>
-                </li>
-            {{end}}
-        </ul>
-        {{if .Player}}
-            {{if not .Game.IsFull}}<button onclick="navigator.clipboard.writeText(window.location)">Copy invite link</button>{{end}}
-            {{if .Game.HasEnoughPlayers}}
-                <form method="post" action="/game/{{.Game.Id}}/start">
-                    <button type="submit">Start Game</button>
-                </form>
-            {{end}}
+        {{else if .Game.IsGameOver}}
+            <h3>Game Over</h3>
+        {{else}}
+            <h3>Game</h3>
+            <ul>
+                <li>Round: {{.Game.Round}}</li>
+            </ul>
         {{end}}
-    {{else if .Game.IsGameOver}}
-        <h3>Game Over</h3>
-    {{else}}
-        <h3>Game</h3>
-        <ul>
-            <li>Round: {{.Game.Round}}</li>
-        </ul>
-    {{end}}
+    {{if not .IsSse}}</div>{{end}}
 {{end}}

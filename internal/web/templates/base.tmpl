@@ -9,12 +9,17 @@
     <title>Prospect</title>
     {{end}}
     <link rel="stylesheet" type="text/css" href="/static/style.css" />
+    <script src="/static/vendor/htmx/v1.9.12.min.js"></script>
+    <script src="/static/vendor/htmx/sse-v1.9.12.js"></script>
+    <script src="/static/vendor/htmx/idiomorph-ext-f75fba1.min.js"></script>
   </head>
   <body>
     <header id="page-header">
       <h1 id="site-title"><a href="/">Prospect</a></h1>
     </header>
-    {{template "content" .}}
+    <div id="content">
+      {{template "content" .}}
+    </div>
   </body>
 </html>
 {{end}}
