@@ -205,6 +205,8 @@ func (s *server) handleGetGame(w http.ResponseWriter, r *http.Request) {
 	s.renderGame(w, r, gr.Game)
 }
 
+const sseKeepAliveInterval = time.Second * 10
+
 func (s *server) handleGetGameSse(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -220,9 +222,9 @@ func (s *server) handleGetGameSse(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	flusher.Flush()
 
-	ticker := time.NewTicker(10 * time.Second)
+	keepAliveTicker := time.NewTicker(sseKeepAliveInterval)
 	defer func() {
-		ticker.Stop()
+		keepAliveTicker.Stop()
 	}()
 
 	notify := gr.Listen(r.Context())
@@ -245,8 +247,13 @@ func (s *server) handleGetGameSse(w http.ResponseWriter, r *http.Request) {
 		case <-notify:
 			render()
 			flusher.Flush()
-		case <-ticker.C:
-			render()
+			keepAliveTicker.Reset(sseKeepAliveInterval)
+		case <-keepAliveTicker.C:
+			// Send an empty SSE comment to keep connection alive
+			_, err := fmt.Fprint(w, ":\n\n")
+			if err != nil {
+				s.logger.Printf("failed to write to SSE output: %v", err)
+			}
 			flusher.Flush()
 		case <-r.Context().Done():
 			return
