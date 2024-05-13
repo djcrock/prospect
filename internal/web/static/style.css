@@ -35,6 +35,11 @@
     font-weight: bold;
     font-family: monospace;
     font-size: 1.2em;
+    cursor: default;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .number {
@@ -83,4 +88,106 @@
 
 .number-10 {
     background-color: #e8524d;
+}
+
+body:has(.card-1-2:hover)  .card-1-2,
+body:has(.card-1-3:hover)  .card-1-3,
+body:has(.card-1-4:hover)  .card-1-4,
+body:has(.card-1-5:hover)  .card-1-5,
+body:has(.card-1-6:hover)  .card-1-6,
+body:has(.card-1-7:hover)  .card-1-7,
+body:has(.card-1-8:hover)  .card-1-8,
+body:has(.card-1-9:hover)  .card-1-9,
+body:has(.card-1-10:hover) .card-1-10,
+
+body:has(.card-2-1:hover)  .card-2-1,
+body:has(.card-2-3:hover)  .card-2-3,
+body:has(.card-2-4:hover)  .card-2-4,
+body:has(.card-2-5:hover)  .card-2-5,
+body:has(.card-2-6:hover)  .card-2-6,
+body:has(.card-2-7:hover)  .card-2-7,
+body:has(.card-2-8:hover)  .card-2-8,
+body:has(.card-2-9:hover)  .card-2-9,
+body:has(.card-2-10:hover) .card-2-10,
+
+body:has(.card-3-1:hover)  .card-3-1,
+body:has(.card-3-2:hover)  .card-3-2,
+body:has(.card-3-4:hover)  .card-3-4,
+body:has(.card-3-5:hover)  .card-3-5,
+body:has(.card-3-6:hover)  .card-3-6,
+body:has(.card-3-7:hover)  .card-3-7,
+body:has(.card-3-8:hover)  .card-3-8,
+body:has(.card-3-9:hover)  .card-3-9,
+body:has(.card-3-10:hover) .card-3-10,
+
+body:has(.card-4-1:hover)  .card-4-1,
+body:has(.card-4-2:hover)  .card-4-2,
+body:has(.card-4-3:hover)  .card-4-3,
+body:has(.card-4-5:hover)  .card-4-5,
+body:has(.card-4-6:hover)  .card-4-6,
+body:has(.card-4-7:hover)  .card-4-7,
+body:has(.card-4-8:hover)  .card-4-8,
+body:has(.card-4-9:hover)  .card-4-9,
+body:has(.card-4-10:hover) .card-4-10,
+
+body:has(.card-5-1:hover)  .card-5-1,
+body:has(.card-5-2:hover)  .card-5-2,
+body:has(.card-5-3:hover)  .card-5-3,
+body:has(.card-5-4:hover)  .card-5-4,
+body:has(.card-5-6:hover)  .card-5-6,
+body:has(.card-5-7:hover)  .card-5-7,
+body:has(.card-5-8:hover)  .card-5-8,
+body:has(.card-5-9:hover)  .card-5-9,
+body:has(.card-5-10:hover) .card-5-10,
+
+body:has(.card-6-1:hover)  .card-6-1,
+body:has(.card-6-2:hover)  .card-6-2,
+body:has(.card-6-3:hover)  .card-6-3,
+body:has(.card-6-4:hover)  .card-6-4,
+body:has(.card-6-5:hover)  .card-6-5,
+body:has(.card-6-7:hover)  .card-6-7,
+body:has(.card-6-8:hover)  .card-6-8,
+body:has(.card-6-9:hover)  .card-6-9,
+body:has(.card-6-10:hover) .card-6-10,
+
+body:has(.card-7-1:hover)  .card-7-1,
+body:has(.card-7-2:hover)  .card-7-2,
+body:has(.card-7-3:hover)  .card-7-3,
+body:has(.card-7-4:hover)  .card-7-4,
+body:has(.card-7-5:hover)  .card-7-5,
+body:has(.card-7-6:hover)  .card-7-6,
+body:has(.card-7-8:hover)  .card-7-8,
+body:has(.card-7-9:hover)  .card-7-9,
+body:has(.card-7-10:hover) .card-7-10,
+
+body:has(.card-8-1:hover)  .card-8-1,
+body:has(.card-8-2:hover)  .card-8-2,
+body:has(.card-8-3:hover)  .card-8-3,
+body:has(.card-8-4:hover)  .card-8-4,
+body:has(.card-8-5:hover)  .card-8-5,
+body:has(.card-8-6:hover)  .card-8-6,
+body:has(.card-8-7:hover)  .card-8-7,
+body:has(.card-8-9:hover)  .card-8-9,
+body:has(.card-8-10:hover) .card-8-10,
+
+body:has(.card-9-1:hover)  .card-9-1,
+body:has(.card-9-2:hover)  .card-9-2,
+body:has(.card-9-3:hover)  .card-9-3,
+body:has(.card-9-4:hover)  .card-9-4,
+body:has(.card-9-5:hover)  .card-9-5,
+body:has(.card-9-6:hover)  .card-9-6,
+body:has(.card-9-7:hover)  .card-9-7,
+body:has(.card-9-8:hover)  .card-9-8,
+body:has(.card-9-10:hover) .card-9-10,
+
+body:has(.card-10-1:hover) .card-10-1,
+body:has(.card-10-2:hover) .card-10-2,
+body:has(.card-10-3:hover) .card-10-3,
+body:has(.card-10-4:hover) .card-10-4,
+body:has(.card-10-5:hover) .card-10-5,
+body:has(.card-10-6:hover) .card-10-6,
+body:has(.card-10-7:hover) .card-10-7,
+body:has(.card-10-8:hover) .card-10-8,
+body:has(.card-10-9:hover) .card-10-9 {
+    border-color: yellow;
 }

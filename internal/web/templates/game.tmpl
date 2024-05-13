@@ -73,7 +73,7 @@
 
 {{define "card"}}
     {{- /*gotype: github.com/djcrock/prospect/internal/game.Card*/ -}}
-    <div class="card">
+    <div class="card card-{{index . 0}}-{{index . 1}}">
         {{range .}}
             <div class="number number-{{.}}">{{.}}</div>
         {{end}}
