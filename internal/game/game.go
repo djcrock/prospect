@@ -1,40 +1,9 @@
 package game
 
 import (
-	"cmp"
 	"errors"
 	"slices"
 )
-
-const minPlayers = 3
-const maxPlayers = 5
-
-var baseDeck = makeBaseDeck()
-
-func makeBaseDeck() []Card {
-	var baseDeck []Card
-	for top := 10; top >= 1; top-- {
-		for bottom := top - 1; bottom >= 1; bottom-- {
-			baseDeck = append(baseDeck, Card{top, bottom})
-		}
-	}
-	return baseDeck
-}
-
-func GetDeck(players int) []Card {
-	cardsToRemove := 0
-	if players == 3 {
-		// Omit all cards containing 10 (the first 9 cards)
-		cardsToRemove = 9
-	}
-	if players == 4 {
-		// Remove the 10/9 card (the first card)
-		cardsToRemove = 1
-	}
-	result := make([]Card, len(baseDeck)-cardsToRemove)
-	copy(result, baseDeck[cardsToRemove:])
-	return result
-}
 
 func (g *Game) AddPlayer(id, name string) error {
 	if g.IsFull() {
@@ -58,24 +27,6 @@ func (g *Game) RemovePlayer(id string) {
 		return
 	}
 	g.Players = slices.Delete(g.Players, i, i+1)
-}
-
-func (g *Game) GetPlayerById(id string) *Player {
-	i, err := g.GetPlayerIndex(id)
-	if err != nil {
-		return nil
-	}
-	return &g.Players[i]
-}
-
-func (g *Game) GetPlayerIndex(id string) (int, error) {
-	for i := range g.Players {
-		if g.Players[i].Id == id {
-			return i, nil
-		}
-	}
-
-	return -1, errors.New("player not found")
 }
 
 func (g *Game) Start() error {
@@ -116,18 +67,10 @@ func (g *Game) startRound() {
 	}
 }
 
-func (g *Game) HavePlayersDecidedHandOrientation() bool {
-	for i := range g.Players {
-		if !g.Players[i].HasDecidedHandOrientation {
-			return false
-		}
-	}
-	return true
-}
-
-func (g *Game) DecideHandOrientation(player int, flip bool) error {
-	if player < 0 || player >= len(g.Players) {
-		return errors.New("player out of range")
+func (g *Game) DecideHandOrientation(playerId string, flip bool) error {
+	player, err := g.GetPlayerIndex(playerId)
+	if err != nil {
+		return err
 	}
 	p := &g.Players[player]
 	if p.HasDecidedHandOrientation {
@@ -145,9 +88,10 @@ func (g *Game) DecideHandOrientation(player int, flip bool) error {
 	return nil
 }
 
-func (g *Game) Prospect(player int, left, flip bool, position int) error {
-	if player < 0 || player >= len(g.Players) {
-		return errors.New("player out of range")
+func (g *Game) Prospect(playerId string, left, flip bool, position int) error {
+	player, err := g.GetPlayerIndex(playerId)
+	if err != nil {
+		return err
 	}
 	if player != g.CurrentPlayer {
 		return errors.New("not your turn")
@@ -175,7 +119,7 @@ func (g *Game) Prospect(player int, left, flip bool, position int) error {
 	p.Hand = slices.Insert(p.Hand, position, card)
 	g.Players[g.LastPlayerToPresent].ProspectTokens++
 
-	if p.CanProspectAndPresent && g.CanPlayerPresent(player) {
+	if p.CanProspectAndPresent && g.CanPlayerPresent(playerId) {
 		p.IsDecidingPresent = true
 		return nil
 	}
@@ -185,9 +129,10 @@ func (g *Game) Prospect(player int, left, flip bool, position int) error {
 	return nil
 }
 
-func (g *Game) Present(player, start, end int) error {
-	if player < 0 || player >= len(g.Players) {
-		return errors.New("player out of range")
+func (g *Game) Present(playerId string, start, end int) error {
+	player, err := g.GetPlayerIndex(playerId)
+	if err != nil {
+		return err
 	}
 	if player != g.CurrentPlayer {
 		return errors.New("not your turn")
@@ -234,9 +179,10 @@ func (g *Game) Present(player, start, end int) error {
 }
 
 // Pass on the opportunity to Present after Prospect.
-func (g *Game) Pass(player int) error {
-	if player < 0 || player >= len(g.Players) {
-		return errors.New("player out of range")
+func (g *Game) Pass(playerId string) error {
+	player, err := g.GetPlayerIndex(playerId)
+	if err != nil {
+		return err
 	}
 	if player != g.CurrentPlayer {
 		return errors.New("not your turn")
@@ -274,137 +220,4 @@ func (g *Game) endRound() {
 		return
 	}
 	g.startRound()
-}
-
-func (g *Game) IsEmpty() bool {
-	return len(g.Players) == 0
-}
-
-func (g *Game) HasEnoughPlayers() bool {
-	return len(g.Players) >= minPlayers
-}
-
-func (g *Game) IsFull() bool {
-	return len(g.Players) >= maxPlayers
-}
-
-func (g *Game) IsLobby() bool {
-	return g.Round == 0
-}
-
-func (g *Game) IsGameOver() bool {
-	return g.Round == len(g.Players)
-}
-
-func (g *Game) CanPlayerPresent(player int) bool {
-	return len(GetPlayablePresentations(g.Players[player].Hand, g.Presentation)) > 0
-}
-
-// GetPlayablePresentations determines which presentations could be played from
-// the given hand that would beat the provided presentation. Results are sorted
-// from least to most valuable.
-func GetPlayablePresentations(hand, presentation []Card) [][]Card {
-	validPresentations := GetValidPresentations(hand)
-	for i := range validPresentations {
-		if ComparePresentations(validPresentations[i], presentation) > 0 {
-			return validPresentations[i:]
-		}
-	}
-
-	return nil
-}
-
-// GetValidPresentations identifies the groups of cards in a hand that could be
-// presented together. The results are sorted from least to most valuable.
-func GetValidPresentations(hand []Card) [][]Card {
-	var validPresentations [][]Card
-	for i := range hand {
-		for j := range hand[i:] {
-			presentation := hand[i : i+j+1]
-			if IsValidPresentation(presentation) {
-				validPresentations = append(validPresentations, presentation)
-			}
-		}
-	}
-	slices.SortFunc(validPresentations, ComparePresentations)
-	return validPresentations
-}
-
-func getPresentationVals(presentation []Card) []int {
-	vals := make([]int, len(presentation))
-	for i := range presentation {
-		vals[i] = presentation[i][0]
-	}
-	return vals
-}
-
-func IsValidPresentation(presentation []Card) bool {
-	if len(presentation) == 0 {
-		return false
-	}
-	if len(presentation) == 1 {
-		return true
-	}
-	vals := getPresentationVals(presentation)
-
-	isAlike := true
-	isAscendingRun := true
-	isDescendingRun := true
-	for i := 1; i < len(vals); i++ {
-		if vals[i] != vals[i-1] {
-			isAlike = false
-		}
-		if vals[i] != vals[i-1]+1 {
-			isAscendingRun = false
-		}
-		if vals[i] != vals[i-1]-1 {
-			isDescendingRun = false
-		}
-		if !isAlike && !isAscendingRun && !isDescendingRun {
-			return false
-		}
-	}
-
-	return isAlike || isAscendingRun || isDescendingRun
-}
-
-// ComparePresentations compares the value of two presentations (assumed to be
-// valid), and returns 1 if the value of a is greater, -1 if the value of b is
-// greater, and 0 if they have the same value. This function is usable with the
-// slices.SortFunc function to rank presentations.
-func ComparePresentations(a, b []Card) int {
-	if len(a) != len(b) {
-		return cmp.Compare(len(a), len(b))
-	}
-
-	aMax := 0
-	aSame := true
-	for _, aVal := range getPresentationVals(a) {
-		if aMax != 0 && aVal != aMax {
-			aSame = false
-		}
-		if aVal > aMax {
-			aMax = aVal
-		}
-	}
-
-	bMax := 0
-	bSame := true
-	for _, bVal := range getPresentationVals(b) {
-		if bMax != 0 && bVal != bMax {
-			bSame = false
-		}
-		if bVal > bMax {
-			bMax = bVal
-		}
-	}
-
-	if aSame && !bSame {
-		return 1
-	}
-	if !aSame && bSame {
-		return -1
-	}
-
-	return cmp.Compare(aMax, bMax)
 }

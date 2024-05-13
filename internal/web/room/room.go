@@ -18,6 +18,7 @@ type Room struct {
 	Mu        sync.RWMutex
 	Game      *game.Game
 	listeners map[listener]bool
+	// TODO: Can this field be removed? What is it actually doing?
 	playerIds map[string]bool
 
 	register   chan listener

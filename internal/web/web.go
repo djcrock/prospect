@@ -3,16 +3,19 @@ package web
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/djcrock/prospect/internal/game"
 	"github.com/djcrock/prospect/internal/web/room"
 	"github.com/djcrock/prospect/internal/web/static"
 	"github.com/djcrock/prospect/internal/web/templates"
-	"io"
-	"log"
-	"net/http"
-	"strings"
-	"sync"
-	"time"
 )
 
 type server struct {
@@ -39,6 +42,8 @@ func NewApp(
 	mux.Handle("POST /game/{id}/players", s.withGameRoom(http.HandlerFunc(s.handlePostGamePlayers)))
 	mux.Handle("POST /game/{id}/leave", s.withGameRoom(http.HandlerFunc(s.handlePostGameLeave)))
 	mux.Handle("POST /game/{id}/start", s.withGameRoom(http.HandlerFunc(s.handlePostGameStart)))
+	mux.Handle("POST /game/{id}/decide/{direction}", s.withGameRoom(http.HandlerFunc(s.handlePostGameDecide)))
+	mux.Handle("POST /game/{id}/present/{presentation}", s.withGameRoom(http.HandlerFunc(s.handlePostGamePresent)))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Vary", "HX-Request")
@@ -49,6 +54,29 @@ func NewApp(
 
 type baseData struct {
 	Title string
+}
+
+type gameData struct {
+	Base                  baseData
+	IsSse                 bool
+	Game                  *game.Game
+	Player                *game.Player
+	PlayablePresentations [][]game.Card
+	YourTurn              bool
+	CanPresent            bool
+}
+
+func prepareGameData(g *game.Game, playerId string) *gameData {
+	playerIndex, _ := g.GetPlayerIndex(playerId)
+	data := &gameData{
+		Base:                  baseData{Title: "Game"},
+		Game:                  g,
+		Player:                g.GetPlayerById(playerId),
+		PlayablePresentations: g.PlayablePresentations(playerId),
+		YourTurn:              playerIndex == g.CurrentPlayer,
+	}
+	data.CanPresent = data.YourTurn && len(data.PlayablePresentations) > 0 && g.HavePlayersDecidedHandOrientation()
+	return data
 }
 
 func (s *server) retrieveGameRoom(gameId string) *room.Room {
@@ -63,11 +91,7 @@ func (s *server) redirectToGame(w http.ResponseWriter, r *http.Request, g *game.
 	gameUrl := "/game/" + g.Id
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("HX-Push-Url", gameUrl)
-		data := &gameData{
-			Base:   baseData{Title: "Game"},
-			Game:   g,
-			Player: g.GetPlayerById(getPlayerId(r)),
-		}
+		data := prepareGameData(g, getPlayerId(r))
 
 		err := templates.Game.ExecutePartial(w, data)
 		if err != nil {
@@ -79,11 +103,7 @@ func (s *server) redirectToGame(w http.ResponseWriter, r *http.Request, g *game.
 }
 
 func (s *server) renderGame(w io.Writer, r *http.Request, g *game.Game) {
-	data := &gameData{
-		Base:   baseData{Title: "Game"},
-		Game:   g,
-		Player: g.GetPlayerById(getPlayerId(r)),
-	}
+	data := prepareGameData(g, getPlayerId(r))
 	var err error
 	if r.Header.Get("HX-Request") == "true" {
 		err = templates.Game.ExecutePartial(w, data)
@@ -96,12 +116,8 @@ func (s *server) renderGame(w io.Writer, r *http.Request, g *game.Game) {
 }
 
 func (s *server) renderGameSse(w io.Writer, r *http.Request, g *game.Game) {
-	data := &gameData{
-		Base:   baseData{Title: "Game"},
-		IsSse:  true,
-		Game:   g,
-		Player: g.GetPlayerById(getPlayerId(r)),
-	}
+	data := prepareGameData(g, getPlayerId(r))
+	data.IsSse = true
 	err := templates.Game.ExecutePartial(w, data)
 	if err != nil {
 		s.logger.Printf("failed to execute template: %v", err)
@@ -186,15 +202,69 @@ func (s *server) handlePostGameStart(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.logger.Printf("failed to start game: %v", err)
 	}
+	gr.Notify()
 
 	s.renderGame(w, r, gr.Game)
 }
 
-type gameData struct {
-	Base   baseData
-	IsSse  bool
-	Game   *game.Game
-	Player *game.Player
+func (s *server) handlePostGameDecide(w http.ResponseWriter, r *http.Request) {
+	gr := getGameRoom(r)
+	direction := r.PathValue("direction")
+
+	gr.Mu.Lock()
+	defer gr.Mu.Unlock()
+
+	err := gr.Game.DecideHandOrientation(getPlayerId(r), direction == "down")
+	if err != nil {
+		s.logger.Printf("failed to decide hand orientation: %v", err)
+		s.renderGame(w, r, gr.Game)
+		return
+	}
+	gr.Notify()
+
+	s.renderGame(w, r, gr.Game)
+}
+
+func (s *server) handlePostGamePresent(w http.ResponseWriter, r *http.Request) {
+	gr := getGameRoom(r)
+	presentationStr := r.PathValue("presentation")
+	presentationElements := strings.Split(presentationStr, "-")
+	if len(presentationElements) != 3 {
+		s.logger.Printf("invalid presentation: malformed argument: %s", presentationStr)
+		s.renderGame(w, r, gr.Game)
+		return
+	}
+	var presentationInts [3]int
+	for i := range presentationElements {
+		val, err := strconv.Atoi(presentationElements[i])
+		presentationInts[i] = val
+		if err != nil {
+			s.logger.Printf("invalid presentation: %v", err)
+			s.renderGame(w, r, gr.Game)
+			return
+		}
+	}
+
+	gr.Mu.Lock()
+	defer gr.Mu.Unlock()
+
+	p := gr.Game.GetPlayerById(getPlayerId(r))
+	start := slices.Index(p.Hand, game.Card{presentationInts[0], presentationInts[1]})
+	if start == -1 {
+		s.logger.Print("invalid presentation: card not in hand")
+		s.renderGame(w, r, gr.Game)
+		return
+	}
+
+	err := gr.Game.Present(getPlayerId(r), start, start+presentationInts[2])
+	if err != nil {
+		s.logger.Printf("failed to present: %v", err)
+		s.renderGame(w, r, gr.Game)
+		return
+	}
+	gr.Notify()
+
+	s.renderGame(w, r, gr.Game)
 }
 
 func (s *server) handleGetGame(w http.ResponseWriter, r *http.Request) {

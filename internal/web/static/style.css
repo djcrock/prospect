@@ -1,3 +1,86 @@
 .inline-form {
     display: inline-block;
 }
+
+.presentations {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    gap: 10px;
+}
+
+.action {
+    border: none;
+    padding: 0;
+    background-color: transparent;
+    outline: none;
+}
+
+.hand {
+    display: inline-flex;
+    flex-direction: row;
+    border-radius: 5px;
+    border: solid 2px;
+    padding: 5px;
+    background-color: lightgray;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    margin: 2px;
+    border: solid 2px gray;
+    border-radius: 5px;
+    overflow: hidden;
+    font-weight: bold;
+    font-family: monospace;
+    font-size: 1.2em;
+}
+
+.number {
+    padding: 2px;
+    width: 2em;
+    height: 2em;
+    line-height: 2em;
+    text-align: center;
+}
+
+.number-1 {
+    background-color: #6476c2;
+}
+
+.number-2 {
+    background-color: #5892d7;
+}
+
+.number-3 {
+    background-color: #5ac4e8;
+}
+
+.number-4 {
+    background-color: #50b0b4;
+}
+
+.number-5 {
+    background-color: #80b74c;
+}
+
+.number-6 {
+    background-color: #d2da4b;
+}
+
+.number-7 {
+    background-color: #f6cd46;
+}
+
+.number-8 {
+    background-color: #f3b341;
+}
+
+.number-9 {
+    background-color: #f0973e;
+}
+
+.number-10 {
+    background-color: #e8524d;
+}

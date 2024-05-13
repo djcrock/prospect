@@ -124,7 +124,7 @@ func TestGame_DecideHandOrientation(t *testing.T) {
 		g := &Game{Round: 1, Players: []Player{
 			{Hand: []Card{{1, 2}, {3, 4}}},
 		}}
-		err := g.DecideHandOrientation(0, false)
+		err := g.DecideHandOrientation("", false)
 		if err != nil {
 			t.Fatalf("unexpected error deciding hand orientation: %v", err)
 		}
@@ -138,7 +138,7 @@ func TestGame_DecideHandOrientation(t *testing.T) {
 		g := &Game{Round: 1, Players: []Player{
 			{Hand: []Card{{1, 2}, {3, 4}}},
 		}}
-		err := g.DecideHandOrientation(0, true)
+		err := g.DecideHandOrientation("", true)
 		if err != nil {
 			t.Fatalf("unexpected error deciding hand orientation: %v", err)
 		}
@@ -154,13 +154,13 @@ func TestGame_Present(t *testing.T) {
 		g := &Game{
 			Round: 1,
 			Players: []Player{
-				{Hand: []Card{{1, 2}, {2, 3}}, Points: 1, ScorePile: 2, ProspectTokens: 3, HasDecidedHandOrientation: true},
-				{Hand: []Card{{5, 6}, {7, 8}}, HasDecidedHandOrientation: true},
+				{Id: "0", Hand: []Card{{1, 2}, {2, 3}}, Points: 1, ScorePile: 2, ProspectTokens: 3, HasDecidedHandOrientation: true},
+				{Id: "1", Hand: []Card{{5, 6}, {7, 8}}, HasDecidedHandOrientation: true},
 			},
 			Rand: rand.New(rand.NewPCG(1, 2)),
 		}
 
-		err := g.Present(0, 0, 2)
+		err := g.Present("0", 0, 2)
 		if err != nil {
 			t.Fatalf("unexpected error presenting for player 0: %v", err)
 		}
@@ -207,8 +207,8 @@ func TestGetPlayablePresentations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetPlayablePresentations(tt.args.hand, tt.args.presentation); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetPlayablePresentations() = %v, want %v", got, tt.want)
+			if got := getPlayablePresentations(tt.args.hand, tt.args.presentation); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getPlayablePresentations() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -288,19 +288,19 @@ func TestGameplay(t *testing.T) {
 		t.Fatalf("unexpected error starting game: %v", err)
 	}
 
-	err = g.DecideHandOrientation(0, false)
+	err = g.DecideHandOrientation("0", false)
 	if err != nil {
 		t.Fatalf("unexpected error deciding hand orientation: %v", err)
 	}
-	err = g.DecideHandOrientation(0, true)
+	err = g.DecideHandOrientation("0", true)
 	if err == nil {
 		t.Fatalf("expected error deciding hand orientation for second time")
 	}
-	err = g.DecideHandOrientation(1, true)
+	err = g.DecideHandOrientation("1", true)
 	if err != nil {
 		t.Fatalf("unexpected error deciding hand orientation: %v", err)
 	}
-	err = g.DecideHandOrientation(2, true)
+	err = g.DecideHandOrientation("2", true)
 	if err != nil {
 		t.Fatalf("unexpected error deciding hand orientation: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestGameplay(t *testing.T) {
 	assertCardSlicesEqual(t, []Card{{8, 7}, {1, 4}, {6, 5}, {8, 3}, {5, 8}, {5, 1}, {1, 3}, {9, 2}, {4, 2}, {7, 2}, {6, 3}, {4, 7}}, g.Players[1].Hand)
 	assertCardSlicesEqual(t, []Card{{1, 8}, {6, 8}, {4, 6}, {6, 7}, {6, 2}, {3, 7}, {9, 5}, {2, 3}, {9, 6}, {4, 9}, {8, 2}, {8, 9}}, g.Players[2].Hand)
 
-	err = g.Present(0, 3, 4)
+	err = g.Present("0", 3, 4)
 	if err != nil {
 		t.Fatalf("unexpected error presenting for player 0: %v", err)
 	}
@@ -319,7 +319,7 @@ func TestGameplay(t *testing.T) {
 	assertCardSlicesEqual(t, []Card{{5, 7}}, g.Presentation)
 	assertCardSlicesEqual(t, []Card{{3, 5}, {1, 2}, {1, 9}, {1, 6}, {1, 7}, {5, 2}, {8, 4}, {3, 4}, {7, 9}, {5, 4}, {3, 9}}, g.Players[0].Hand)
 
-	err = g.Present(1, 0, 1)
+	err = g.Present("1", 0, 1)
 	if err != nil {
 		t.Fatalf("unexpected error presenting for player 1: %v", err)
 	}
@@ -329,7 +329,7 @@ func TestGameplay(t *testing.T) {
 	assertCardSlicesEqual(t, []Card{{8, 7}}, g.Presentation)
 	assertCardSlicesEqual(t, []Card{{1, 4}, {6, 5}, {8, 3}, {5, 8}, {5, 1}, {1, 3}, {9, 2}, {4, 2}, {7, 2}, {6, 3}, {4, 7}}, g.Players[1].Hand)
 
-	err = g.Present(2, 6, 7)
+	err = g.Present("2", 6, 7)
 	if err != nil {
 		t.Fatalf("unexpected error presenting for player 2: %v", err)
 	}
@@ -339,7 +339,7 @@ func TestGameplay(t *testing.T) {
 	assertCardSlicesEqual(t, []Card{{9, 5}}, g.Presentation)
 	assertCardSlicesEqual(t, []Card{{1, 8}, {6, 8}, {4, 6}, {6, 7}, {6, 2}, {3, 7}, {2, 3}, {9, 6}, {4, 9}, {8, 2}, {8, 9}}, g.Players[2].Hand)
 
-	err = g.Prospect(0, true, true, 5)
+	err = g.Prospect("0", true, true, 5)
 	if err != nil {
 		t.Fatalf("unexpected error prospecting player 0: %v", err)
 	}
@@ -349,7 +349,7 @@ func TestGameplay(t *testing.T) {
 	if !g.Players[0].IsDecidingPresent {
 		t.Fatal("expected player 0 to be deciding to present")
 	}
-	err = g.Pass(0)
+	err = g.Pass("0")
 	if err != nil {
 		t.Fatalf("unexpected error passing player 0: %v", err)
 	}
@@ -362,14 +362,14 @@ func TestGameplay(t *testing.T) {
 	assertCardSlicesEqual(t, []Card{}, g.Presentation)
 	assertCardSlicesEqual(t, []Card{{3, 5}, {1, 2}, {1, 9}, {1, 6}, {1, 7}, {5, 9}, {5, 2}, {8, 4}, {3, 4}, {7, 9}, {5, 4}, {3, 9}}, g.Players[0].Hand)
 
-	err = g.Present(1, 5, 6)
+	err = g.Present("1", 5, 6)
 	if err != nil {
 		t.Fatalf("unexpected error presenting for player 1: %v", err)
 	}
 	assertCardSlicesEqual(t, []Card{{1, 3}}, g.Presentation)
 	assertCardSlicesEqual(t, []Card{{1, 4}, {6, 5}, {8, 3}, {5, 8}, {5, 1}, {9, 2}, {4, 2}, {7, 2}, {6, 3}, {4, 7}}, g.Players[1].Hand)
 
-	err = g.Prospect(2, false, false, 0)
+	err = g.Prospect("2", false, false, 0)
 	if err != nil {
 		t.Fatalf("unexpected error prospecting player 2: %v", err)
 	}
@@ -378,7 +378,7 @@ func TestGameplay(t *testing.T) {
 	}
 	assertCardSlicesEqual(t, []Card{}, g.Presentation)
 	assertCardSlicesEqual(t, []Card{{1, 3}, {1, 8}, {6, 8}, {4, 6}, {6, 7}, {6, 2}, {3, 7}, {2, 3}, {9, 6}, {4, 9}, {8, 2}, {8, 9}}, g.Players[2].Hand)
-	err = g.Present(2, 0, 2)
+	err = g.Present("2", 0, 2)
 	if err != nil {
 		t.Fatalf("unexpected error presenting for player 2: %v", err)
 	}

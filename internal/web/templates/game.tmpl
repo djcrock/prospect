@@ -1,4 +1,5 @@
 {{define "content"}}
+    {{- /*gotype: github.com/djcrock/prospect/internal/web.gameData*/ -}}
     {{if not .IsSse}}<div id="game" data-hx-ext="sse,morph" data-hx-swap="morph:{morphStyle:'innerHTML',ignoreActiveValue:true}" data-sse-connect="/game/{{.Game.Id}}/sse" data-sse-swap="message">{{end}}
         {{if .Game.IsLobby}}
             <h3>Lobby</h3>
@@ -33,6 +34,48 @@
             <ul>
                 <li>Round: {{.Game.Round}}</li>
             </ul>
+            <h3>Presentation</h3>
+            {{if gt (len .Game.Presentation) 0}}
+                {{template "hand" .Game.Presentation}}
+            {{else}}
+                <p>No cards presented.</p>
+            {{end}}
+            {{if .Player}}
+                <h3>Hand</h3>
+                {{template "hand" .Player.Hand}}
+                {{if not .Player.HasDecidedHandOrientation}}
+                    <p>Keep or flip?</p>
+                    <button data-hx-post="/game/{{.Game.Id}}/decide/up" data-hx-target="#content">Keep</button>
+                    <button data-hx-post="/game/{{.Game.Id}}/decide/down" data-hx-target="#content">Flip</button>
+                {{end}}
+                {{if .CanPresent}}
+                    <h3>Present</h3>
+                    <div class="presentations">
+                        {{range $i, $p := .PlayablePresentations}}
+                            <button class="action" data-hx-post="/game/{{$.Game.Id}}/present/{{index $p 0 0}}-{{index $p 0 1}}-{{len $p}}" data-hx-target="#content">
+                                {{template "hand" $p}}
+                            </button>
+                        {{end}}
+                    </div>
+                {{end}}
+            {{end}}
         {{end}}
     {{if not .IsSse}}</div>{{end}}
+{{end}}
+
+{{define "hand"}}
+    <div class="hand">
+        {{range .}}
+            {{template "card" .}}
+        {{end}}
+    </div>
+{{end}}
+
+{{define "card"}}
+    {{- /*gotype: github.com/djcrock/prospect/internal/game.Card*/ -}}
+    <div class="card">
+        {{range .}}
+            <div class="number number-{{.}}">{{.}}</div>
+        {{end}}
+    </div>
 {{end}}
